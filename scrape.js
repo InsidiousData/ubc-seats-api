@@ -8,23 +8,23 @@ const formatRestrictions = string => {
 };
 
 //Returns an JSON object that contains the details of the seat summary table
-const getFormattedSeatSummary = async (subject, course, section) => {
+const getSeatSummary = async (subject, course, section) => {
   const URL = `https://courses.students.ubc.ca/cs/courseschedule?pname=subjarea&tname=subj-section&dept=${subject}&course=${course}&section=${section}`;
   const html = await axios.get(URL).then(res => res.data)
   const $ = cheerio.load(html);
 
   //Specific HTML element containing registration details
-  const seatSummary = $("table[class=\\'table] > tbody").children();
+  const seatSummaryCheerio = $("table[class=\\'table] > tbody").children();
 
-  if (!seatSummary.html()) {
+  if (!seatSummaryCheerio.html()) {
     throw {
-      name: "ClassNotFoundError",
+      name: "CourseNotFoundError",
       message:
         "The Seat Summary HTML element could not be found for this class",
     };
   }
 
-  const formattedSeatSummary = {
+  const seatSummary = {
     totalSeatsRemaining: "",
     currentlyRegistered: "",
     generalSeatsRemaining: "",
@@ -32,7 +32,7 @@ const getFormattedSeatSummary = async (subject, course, section) => {
     restrictions: ""
   };
 
-  seatSummary.each((i, elem) => {
+  seatSummaryCheerio.each((i, elem) => {
     const row = $(elem).children();
 
     //firstColumnText refers to the type of seat
@@ -40,34 +40,28 @@ const getFormattedSeatSummary = async (subject, course, section) => {
     //secondColumnText refers to the number
     const secondColumnText = row.eq(1).text();
 
-
-
     switch (firstColumnText) {
       case "Total Seats Remaining:":
-        formattedSeatSummary.totalSeatsRemaining = secondColumnText;
+        seatSummary.totalSeatsRemaining = secondColumnText;
         break;
       case "Currently Registered:":
-        formattedSeatSummary.currentlyRegistered = secondColumnText;
+        seatSummary.currentlyRegistered = secondColumnText;
         break;
       case "General Seats Remaining:":
-        formattedSeatSummary.generalSeatsRemaining = secondColumnText;
+        seatSummary.generalSeatsRemaining = secondColumnText;
         break;
       case "Restricted Seats Remaining*:":
-        formattedSeatSummary.restrictedSeatsRemaining = secondColumnText;
+        seatSummary.restrictedSeatsRemaining = secondColumnText;
         break;
-    }
-
-
-    //If the second column text is empty, means we are on the restrictions row
-    if (!secondColumnText) {
-      formattedSeatSummary.restrictions = formatRestrictions(
-        firstColumnText
-      );
+      //Use for restrictions row
+      default:
+        seatSummary.restrictions = formatRestrictions(
+          firstColumnText)
     }
   });
-  return formattedSeatSummary;
+  return seatSummary;
 };
 
 module.exports = {
-  getFormattedSeatSummary
+  getSeatSummary
 };
